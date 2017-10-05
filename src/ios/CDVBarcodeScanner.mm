@@ -14,6 +14,7 @@
 //------------------------------------------------------------------------------
 #import "zxing-all-in-one.h"
 #import <Cordova/CDVPlugin.h>
+#import <UIKit/UIKit.h>
 
 
 //------------------------------------------------------------------------------
@@ -43,6 +44,7 @@
 @interface CDVBarcodeScanner : CDVPlugin {}
 - (NSString*)isScanNotPossible;
 - (void)scan:(CDVInvokedUrlCommand*)command;
+- (void)dismiss:(CDVInvokedUrlCommand*)command;
 - (void)encode:(CDVInvokedUrlCommand*)command;
 - (void)returnImage:(NSString*)filePath format:(NSString*)format callback:(NSString*)callback;
 - (void)returnSuccess:(NSString*)scannedText format:(NSString*)format cancelled:(BOOL)cancelled flipped:(BOOL)flipped callback:(NSString*)callback;
@@ -124,8 +126,14 @@
 //------------------------------------------------------------------------------
 // plugin class
 //------------------------------------------------------------------------------
-@implementation CDVBarcodeScanner
+@implementation CDVBarcodeScanner {
+    __strong CDVbcsProcessor* _processor1;
+}
 
+- (void)dealloc{
+    _processor1 = nil;
+    [super dealloc];
+}
 //--------------------------------------------------------------------------
 - (NSString*)isScanNotPossible {
     NSString* result = nil;
@@ -208,6 +216,12 @@
     processor.formats = options[@"formats"];
 
     [processor performSelector:@selector(scanBarcode) withObject:nil afterDelay:0];
+    
+    _processor1 = processor;
+}
+
+- (void)dismiss:(CDVInvokedUrlCommand*)command {
+    [_processor1 performSelector:@selector(barcodeScanCancelled) withObject:nil afterDelay:0];
 }
 
 //--------------------------------------------------------------------------
@@ -356,17 +370,25 @@ parentViewController:(UIViewController*)parentViewController
 
 //--------------------------------------------------------------------------
 - (void)openDialog {
-    [self.parentViewController
-     presentViewController:self.viewController
-     animated:self.isTransitionAnimated completion:nil
-     ];
+    //XXX:
+//    [self.parentViewController
+//     presentViewController:self.viewController
+//     animated:self.isTransitionAnimated completion:nil
+//     ];
+    [self.viewController removeFromParentViewController];
+    [self.viewController.view removeFromSuperview];
+    [self.parentViewController.view addSubview:self.viewController.view];
 }
 
 //--------------------------------------------------------------------------
 - (void)barcodeScanDone:(void (^)(void))callbackBlock {
     self.capturing = NO;
     [self.captureSession stopRunning];
-    [self.parentViewController dismissViewControllerAnimated:self.isTransitionAnimated completion:callbackBlock];
+//    [self.parentViewController dismissViewControllerAnimated:self.isTransitionAnimated completion:callbackBlock];
+    [self.viewController removeFromParentViewController];
+    [self.viewController.view removeFromSuperview];
+    
+    dispatch_async(dispatch_get_main_queue(), callbackBlock);
 
     // viewcontroller holding onto a reference to us, release them so they
     // will release us
@@ -881,6 +903,7 @@ parentViewController:(UIViewController*)parentViewController
 //--------------------------------------------------------------------------
 - (void)loadView {
     self.view = [[UIView alloc] initWithFrame: self.processor.parentViewController.view.frame];
+    self.view.frame = CGRectMake(0, 44+20, self.view.frame.size.width, self.view.frame.size.height-44-20);
 
     // setup capture preview layer
     AVCaptureVideoPreviewLayer* previewLayer = self.processor.previewLayer;
@@ -958,7 +981,9 @@ parentViewController:(UIViewController*)parentViewController
 
     if ( nil != self.alternateXib )
     {
-        return [self buildOverlayViewFromXib];
+        UIView* _v = [self buildOverlayViewFromXib];
+        _v.frame = self.view.bounds;
+        return _v;
     }
     CGRect bounds = self.view.bounds;
     bounds = CGRectMake(0, 0, bounds.size.width, bounds.size.height);

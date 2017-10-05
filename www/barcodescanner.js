@@ -143,5 +143,10 @@ BarcodeScanner.prototype.scan = function (successCallback, errorCallback, config
             ]);
         };
 
+        BarcodeScanner.prototype.dismiss =  function () {
+            scanInProgress = false;
+            exec(null, null, "BarcodeScanner", "dismiss", []);
+        };
+
         var barcodeScanner = new BarcodeScanner();
         module.exports = barcodeScanner;
