@@ -776,7 +776,13 @@ parentViewController:(UIViewController*)parentViewController
 //--------------------------------------------------------------------------
 - (void)loadView {
     self.view = [[UIView alloc] initWithFrame: self.processor.parentViewController.view.frame];
-    self.view.frame = CGRectMake(0, 44+20, self.view.frame.size.width, self.view.frame.size.height-44-20);
+    CGRect rect = CGRectMake(0, 44+20, self.view.frame.size.width, self.view.frame.size.height-44-20);
+    if (@available(iOS 11.0, *)) {
+        UIWindow *window = UIApplication.sharedApplication.keyWindow;
+        CGFloat topPadding = window.safeAreaInsets.top;
+        rect.origin.y += topPadding;
+    }
+    self.view.frame = rect;
 }
 
 //--------------------------------------------------------------------------
